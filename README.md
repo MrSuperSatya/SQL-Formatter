@@ -42,10 +42,24 @@ This formats SQL without executing it or validating its syntax. Unsupported
 procedural SQL, stored routines, client directives, lexical errors, unmatched
 parentheses, and token-preservation failures raise `ValueError`.
 
+## GUI app
+
+Run the Tkinter app from the project directory:
+
+```sh
+python app.py
+```
+
+Paste SQL into the input area. **Format** displays the result below.
+**Format & Copy** formats the current input, displays the result, and copies it
+to the clipboard. Formatting errors appear below the output area.
+The GUI requires a Python installation with Tkinter support.
+
 ## Structure
 
 | File | Responsibility |
 | --- | --- |
+| `app.py` | Tkinter GUI with Format and Format & Copy buttons |
 | `sql_formatter/__init__.py` | Public package imports |
 | `sql_formatter/_api.py` | Public string and file formatting functions |
 | `sql_formatter/_tokens.py` | Lexing, identifiers, parenthesis trees, and token preservation |
@@ -69,3 +83,6 @@ The regression fixtures capture 44 SQL examples from the original formatter in
 all three keyword modes. Tests check exact output, formatting idempotence,
 invalid input, and file behavior including BOMs, encodings,
 LF newlines, and preserving an existing output file when formatting fails.
+GUI tests exercise both buttons, empty and invalid input, and clipboard errors
+using real Tk widgets without changing the system clipboard. They are skipped
+when a Tk display is unavailable.
