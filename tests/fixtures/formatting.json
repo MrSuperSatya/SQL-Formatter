@@ -228,9 +228,9 @@
     "name": "identifiers",
     "sql": "select \"Customer ID\", [Customer Name], `Order ID` from \"Customer Table\"",
     "expected": {
-      "lower": "select\n\t\"Customer ID\", [CUSTOMER NAME], `ORDER ID`\nfrom\n\t\"Customer Table\";\n",
-      "upper": "SELECT\n\t\"Customer ID\", [CUSTOMER NAME], `ORDER ID`\nFROM\n\t\"Customer Table\";\n",
-      "preserve": "select\n\t\"Customer ID\", [CUSTOMER NAME], `ORDER ID`\nfrom\n\t\"Customer Table\";\n"
+      "lower": "select\n\t\"Customer ID\", [Customer Name], `Order ID`\nfrom\n\t\"Customer Table\";\n",
+      "upper": "SELECT\n\t\"Customer ID\", [Customer Name], `Order ID`\nFROM\n\t\"Customer Table\";\n",
+      "preserve": "select\n\t\"Customer ID\", [Customer Name], `Order ID`\nfrom\n\t\"Customer Table\";\n"
     }
   },
   {

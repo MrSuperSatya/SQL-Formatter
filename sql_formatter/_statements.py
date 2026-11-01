@@ -64,6 +64,15 @@ def _starts_statement(items: list[_Node], i: int, key: str, body: bool, prev: _N
         return body
     if key == "INSERT" and isinstance(next(following, None), _Group):
         return False
+    if _key(prev) in {"ALL", "DISTINCT"}:
+        preceding = (
+            items[index] for index in range(i - 1, -1, -1)
+            if not _is_comment(items[index])
+        )
+        quantifier = _key(next(preceding, None))
+        operator = _key(next(preceding, None))
+        if f"{operator} {quantifier}" in _SETS:
+            return False
     return _key(prev) not in _SETS and _key(prev) not in {"FOR", "DO", "KEY", "THEN"}
 
 
@@ -94,10 +103,11 @@ def _split_statements(items: list[_Node]) -> tuple[list[_Node], int]:
             inserted += 1
             first = key
             body = key in _BODY_KEYS
-        elif not body and (
-            (first == "WITH" and key in _DML_KEYS)
-            or (first == "INSERT" and key in {"SELECT", "VALUES", "SET"})
-        ):
+        elif not body and first == "WITH" and key in _DML_KEYS:
+            # An INSERT still needs its SELECT/VALUES body after the CTEs.
+            first = key
+            body = key in _BODY_KEYS
+        elif not body and first == "INSERT" and key in {"SELECT", "VALUES", "SET"}:
             body = True
         prev = node
         result.append(node)

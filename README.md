@@ -28,10 +28,10 @@ directory.
 for empty input. `keyword_case` accepts `"lower"` (the default), `"upper"`, or
 `"preserve"`.
 
-The formatter uppercases table and column names, lowercases table aliases,
-and generates missing table aliases. Functions, quoted identifiers, literals,
-and comments retain their spelling. Statements receive semicolons and are
-separated by a blank line.
+The formatter uppercases table and column names, lowercases unquoted table
+aliases, and generates missing aliases for unquoted tables when safe.
+Functions, quoted identifiers, literals, and comments retain their spelling.
+Statements receive semicolons and are separated by a blank line.
 
 `format_sql_file` accepts strings or `pathlib.Path` objects and returns the
 output `Path`. It reads UTF-8 with an optional BOM by default; pass `encoding`
@@ -44,32 +44,37 @@ parentheses, and token-preservation failures raise `ValueError`.
 
 ## GUI app
 
-Run the Tkinter app from the project directory:
+On Windows, double-click **Launch SQL Formatter.bat** in the project folder.
+The launcher uses `.venv\Scripts\pythonw.exe` to open `app_gui.py`.
+
+You can also run it from the project directory:
 
 ```sh
-python app.py
+python app_gui.py
 ```
 
-Paste SQL into the input area. **Format** displays the result below.
-**Format & Copy** formats the current input, displays the result, and copies it
-to the clipboard. Formatting errors appear below the output area.
+Paste SQL into the input area. **Format & Copy** formats the current input
+and copies the result to the clipboard. **Clear** empties the input area.
+Formatting errors appear below the input area.
 The GUI requires a Python installation with Tkinter support.
 
 ## Structure
 
 | File | Responsibility |
 | --- | --- |
-| `app.py` | Tkinter GUI with Format and Format & Copy buttons |
+| `Launch SQL Formatter.bat` | Double-click launcher using the project's virtual environment |
+| `app_gui.py` | Tkinter GUI with Format & Copy and Clear buttons |
 | `sql_formatter/__init__.py` | Public package imports |
 | `sql_formatter/_api.py` | Public string and file formatting functions |
-| `sql_formatter/_tokens.py` | Lexing, identifiers, parenthesis trees, and token preservation |
+| `sql_formatter/_tokens.py` | Lexing, parenthesis trees, and token preservation |
+| `sql_formatter/_identifiers.py` | Query scopes, table aliases, and identifier normalization |
 | `sql_formatter/_statements.py` | Script validation and statement boundaries |
 | `sql_formatter/_layout.py` | Expression, clause, and statement rendering |
 | `sql_formatter/_syntax.py` | Shared SQL keyword categories and formatting limits |
 
-The processing order is token normalization, script validation, parenthesis
-grouping, statement splitting, layout, and token verification. Modules prefixed
-with `_` are internal; use the two public functions above.
+The processing order is tokenization, script validation, parenthesis grouping,
+statement splitting, identifier normalization, layout, and token verification.
+Modules prefixed with `_` are internal; use the two public functions above.
 
 ## Tests
 
@@ -79,10 +84,13 @@ No additional test dependencies are required:
 python -m unittest discover -s tests -v
 ```
 
-The regression fixtures capture 44 SQL examples from the original formatter in
+The regression fixtures cover 44 SQL examples in
 all three keyword modes. Tests check exact output, formatting idempotence,
 invalid input, and file behavior including BOMs, encodings,
 LF newlines, and preserving an existing output file when formatting fails.
+Additional regression tests execute SQL against an in-memory SQLite database
+to check query results before and after formatting, including scoped aliases,
+schema-qualified columns, comments, quoted names, and compound queries.
 GUI tests exercise both buttons, empty and invalid input, and clipboard errors
 using real Tk widgets without changing the system clipboard. They are skipped
 when a Tk display is unavailable.

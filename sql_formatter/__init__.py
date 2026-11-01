@@ -7,7 +7,7 @@ Style: one tab per indent level, lowercase keywords, inline comma-separated
 lists, outer clause headings on their own lines, compact headings inside
 subqueries, and multiline derived tables. Function, literal, and comment
 spelling is preserved; table and column names are upper-cased and table
-aliases lower-cased (missing table aliases are generated). This is a
+unquoted aliases lower-cased (missing aliases are generated when safe). This is a
 formatter, not a SQL validator or dialect converter.
 
 SELECTs, CTEs, joins, subqueries, set operations, and ordinary INSERT/UPDATE/

@@ -24,6 +24,7 @@ from ._tokens import (
     _Token,
     _first,
     _is_comment,
+    _is_distinct_from,
     _is_semicolon,
     _key,
 )
@@ -91,6 +92,8 @@ def _clause_at(items: list[_Node], index: int, first_clause: bool) -> tuple[str,
     """If a clause heading starts at `index`, return (name, number of header tokens)."""
     node = items[index]
     if not isinstance(node, _Token) or not node.key:
+        return None
+    if _is_distinct_from(items, index):
         return None
     key = node.key
     pair = f"{key} {_key(items[index + 1]) if index + 1 < len(items) else ''}"
@@ -261,4 +264,4 @@ def _render(items: list[_Node], keyword_case: str) -> tuple[str, int]:
         if any(not _is_comment(n) for n in statement):
             renderer.out.write(";", 0, False)
             added = 1
-    return "".join(renderer.out.parts).rstrip() + "\n", added
+    return "".join(renderer.out.parts).rstrip("\r\n") + "\n", added

@@ -16,7 +16,7 @@ class FormattingTests(unittest.TestCase):
     def setUpClass(cls):
         cls.cases = json.loads(_FIXTURES.read_text(encoding="utf-8"))
 
-    def test_matches_original_output(self):
+    def test_matches_expected_output(self):
         for case in self.cases:
             for keyword_case, expected in case["expected"].items():
                 with self.subTest(case=case["name"], keyword_case=keyword_case):
@@ -72,6 +72,16 @@ class FormattingTests(unittest.TestCase):
     def test_unrecognized_tokens_are_rejected(self):
         with self.assertRaisesRegex(ValueError, "Unrecognized SQL token"):
             format_sql("select 'unterminated")
+
+    def test_unterminated_block_comments_are_rejected(self):
+        for source in (
+            "select 1 /* note", "/*", "/* note", "select 1/**",
+            "select 1/* complete *//* missing", "select 'caf\u00e9' /* missing",
+        ):
+            for keyword_case in ("lower", "upper", "preserve"):
+                with self.subTest(source=source, keyword_case=keyword_case):
+                    with self.assertRaisesRegex(ValueError, "Unterminated block comment"):
+                        format_sql(source, keyword_case=keyword_case)
 
     def test_client_directives_are_rejected(self):
         for directive in ("GO", "DELIMITER", "PROMPT", "SPOOL"):
@@ -138,6 +148,13 @@ class FileFormattingTests(unittest.TestCase):
         with self.assertRaises(ValueError):
             format_sql_file(self.source, self.target)
         self.assertEqual(self.target.read_bytes(), b"existing content")
+
+    def test_unterminated_comment_does_not_overwrite_input_in_place(self):
+        original = b"select 1 /* missing closing delimiter"
+        self.source.write_bytes(original)
+        with self.assertRaisesRegex(ValueError, "Unterminated block comment"):
+            format_sql_file(self.source, self.source)
+        self.assertEqual(self.source.read_bytes(), original)
 
     def test_missing_input_does_not_create_output(self):
         with self.assertRaises(FileNotFoundError):

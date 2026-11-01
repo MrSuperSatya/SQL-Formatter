@@ -5,6 +5,7 @@ from __future__ import annotations
 from pathlib import Path
 
 from ._tokens import _tokens, _tree, _verify_tokens
+from ._identifiers import _normalize_identifiers
 from ._layout import _render
 from ._statements import _check_supported, _split_statements
 from ._syntax import _KEYWORD_CASES
@@ -16,7 +17,7 @@ def format_sql(sql: str, *, keyword_case: str = "lower") -> str:
     Each indentation level is one tab character. Keyword case may be 'lower',
     'upper', or 'preserve'. Function names, quoted identifiers, string
     literals, and comments retain their original spelling; table and column
-    names are upper-cased and table aliases lower-cased.
+    names are upper-cased and unquoted table aliases lower-cased.
     Multiple statements are each ended with a semicolon and separated by a
     blank line. No SQL is executed.
     ValueError is raised for unsupported scripts, lexical errors, unmatched
@@ -31,9 +32,10 @@ def format_sql(sql: str, *, keyword_case: str = "lower") -> str:
     if not tokens:
         return ""
     _check_supported(tokens)
-    items, inserted = _split_statements(_tree(tokens))
-    result, added = _render(items, keyword_case)
-    _verify_tokens(tokens, result, inserted + added)
+    items, _ = _split_statements(_tree(tokens))
+    normalized = _normalize_identifiers(items)
+    result, added = _render(_tree(normalized), keyword_case)
+    _verify_tokens(normalized, result, added)
     return result
 
 
