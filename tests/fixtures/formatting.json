@@ -1,0 +1,398 @@
+[
+  {
+    "name": "empty",
+    "sql": "",
+    "expected": {
+      "lower": "",
+      "upper": "",
+      "preserve": ""
+    }
+  },
+  {
+    "name": "whitespace",
+    "sql": "﻿ \t\n",
+    "expected": {
+      "lower": "",
+      "upper": "",
+      "preserve": ""
+    }
+  },
+  {
+    "name": "select",
+    "sql": "SELECT customer_id, customer_name FROM customers",
+    "expected": {
+      "lower": "select\n\tCUSTOMER_ID, CUSTOMER_NAME\nfrom\n\tCUSTOMERS c;\n",
+      "upper": "SELECT\n\tCUSTOMER_ID, CUSTOMER_NAME\nFROM\n\tCUSTOMERS c;\n",
+      "preserve": "SELECT\n\tCUSTOMER_ID, CUSTOMER_NAME\nFROM\n\tCUSTOMERS c;\n"
+    }
+  },
+  {
+    "name": "qualified_table",
+    "sql": "select customer_orders.customer_id from sales.customer_orders",
+    "expected": {
+      "lower": "select\n\tco.CUSTOMER_ID\nfrom\n\tSALES.CUSTOMER_ORDERS co;\n",
+      "upper": "SELECT\n\tco.CUSTOMER_ID\nFROM\n\tSALES.CUSTOMER_ORDERS co;\n",
+      "preserve": "select\n\tco.CUSTOMER_ID\nfrom\n\tSALES.CUSTOMER_ORDERS co;\n"
+    }
+  },
+  {
+    "name": "explicit_alias",
+    "sql": "SELECT Customer.Customer_Id FROM Customers AS Customer",
+    "expected": {
+      "lower": "select\n\tcustomer.CUSTOMER_ID\nfrom\n\tCUSTOMERS as customer;\n",
+      "upper": "SELECT\n\tcustomer.CUSTOMER_ID\nFROM\n\tCUSTOMERS AS customer;\n",
+      "preserve": "SELECT\n\tcustomer.CUSTOMER_ID\nFROM\n\tCUSTOMERS AS customer;\n"
+    }
+  },
+  {
+    "name": "alias_collision",
+    "sql": "select * from customers c join customer_orders on c.id = customer_orders.customer_id",
+    "expected": {
+      "lower": "select\n\t*\nfrom\n\tCUSTOMERS c\n\tjoin CUSTOMER_ORDERS co on c.ID = co.CUSTOMER_ID;\n",
+      "upper": "SELECT\n\t*\nFROM\n\tCUSTOMERS c\n\tJOIN CUSTOMER_ORDERS co ON c.ID = co.CUSTOMER_ID;\n",
+      "preserve": "select\n\t*\nfrom\n\tCUSTOMERS c\n\tjoin CUSTOMER_ORDERS co on c.ID = co.CUSTOMER_ID;\n"
+    }
+  },
+  {
+    "name": "alias_keyword",
+    "sql": "select * from async_jobs",
+    "expected": {
+      "lower": "select\n\t*\nfrom\n\tASYNC_JOBS aj;\n",
+      "upper": "SELECT\n\t*\nFROM\n\tASYNC_JOBS aj;\n",
+      "preserve": "select\n\t*\nfrom\n\tASYNC_JOBS aj;\n"
+    }
+  },
+  {
+    "name": "comma_tables",
+    "sql": "select c.id, o.id from customers c, orders o where c.id = o.customer_id",
+    "expected": {
+      "lower": "select\n\tc.ID, o.ID\nfrom\n\tCUSTOMERS c, ORDERS o\nwhere\n\tc.ID = o.CUSTOMER_ID;\n",
+      "upper": "SELECT\n\tc.ID, o.ID\nFROM\n\tCUSTOMERS c, ORDERS o\nWHERE\n\tc.ID = o.CUSTOMER_ID;\n",
+      "preserve": "select\n\tc.ID, o.ID\nfrom\n\tCUSTOMERS c, ORDERS o\nwhere\n\tc.ID = o.CUSTOMER_ID;\n"
+    }
+  },
+  {
+    "name": "joins",
+    "sql": "select c.id, l.amount from customers c left join loans l on c.id = l.customer_id and l.active = 1 where c.active = 1 or c.vip = 1",
+    "expected": {
+      "lower": "select\n\tc.ID, l.AMOUNT\nfrom\n\tCUSTOMERS c\n\tleft join LOANS l on c.ID = l.CUSTOMER_ID\n\tand l.ACTIVE = 1\nwhere\n\tc.ACTIVE = 1\n\tor c.VIP = 1;\n",
+      "upper": "SELECT\n\tc.ID, l.AMOUNT\nFROM\n\tCUSTOMERS c\n\tLEFT JOIN LOANS l ON c.ID = l.CUSTOMER_ID\n\tAND l.ACTIVE = 1\nWHERE\n\tc.ACTIVE = 1\n\tOR c.VIP = 1;\n",
+      "preserve": "select\n\tc.ID, l.AMOUNT\nfrom\n\tCUSTOMERS c\n\tleft join LOANS l on c.ID = l.CUSTOMER_ID\n\tand l.ACTIVE = 1\nwhere\n\tc.ACTIVE = 1\n\tor c.VIP = 1;\n"
+    }
+  },
+  {
+    "name": "derived",
+    "sql": "select x.id from (select id from customers where active = 1) x",
+    "expected": {
+      "lower": "select\n\tx.ID\nfrom\n\t(\n\t\tselect ID\n\t\tfrom CUSTOMERS c\n\t\twhere ACTIVE = 1\n\t) x;\n",
+      "upper": "SELECT\n\tx.ID\nFROM\n\t(\n\t\tSELECT ID\n\t\tFROM CUSTOMERS c\n\t\tWHERE ACTIVE = 1\n\t) x;\n",
+      "preserve": "select\n\tx.ID\nfrom\n\t(\n\t\tselect ID\n\t\tfrom CUSTOMERS c\n\t\twhere ACTIVE = 1\n\t) x;\n"
+    }
+  },
+  {
+    "name": "nested",
+    "sql": "select id from customers where balance > (select avg(balance) from loans) and id in (select customer_id from loans)",
+    "expected": {
+      "lower": "select\n\tID\nfrom\n\tCUSTOMERS c\nwhere\n\tBALANCE > (\n\t\tselect avg(BALANCE)\n\t\tfrom LOANS l\n\t)\n\tand ID in (\n\t\tselect CUSTOMER_ID\n\t\tfrom LOANS l\n\t);\n",
+      "upper": "SELECT\n\tID\nFROM\n\tCUSTOMERS c\nWHERE\n\tBALANCE > (\n\t\tSELECT avg(BALANCE)\n\t\tFROM LOANS l\n\t)\n\tAND ID IN (\n\t\tSELECT CUSTOMER_ID\n\t\tFROM LOANS l\n\t);\n",
+      "preserve": "select\n\tID\nfrom\n\tCUSTOMERS c\nwhere\n\tBALANCE > (\n\t\tselect avg(BALANCE)\n\t\tfrom LOANS l\n\t)\n\tand ID in (\n\t\tselect CUSTOMER_ID\n\t\tfrom LOANS l\n\t);\n"
+    }
+  },
+  {
+    "name": "cte",
+    "sql": "WITH recent AS (SELECT id FROM orders WHERE active = 1), totals AS (SELECT count(*) AS total FROM recent) SELECT * FROM totals",
+    "expected": {
+      "lower": "with\n\tRECENT as (\n\t\tselect ID\n\t\tfrom ORDERS o\n\t\twhere ACTIVE = 1\n\t),\n\tTOTALS as (\n\t\tselect count(*) as TOTAL\n\t\tfrom RECENT r\n\t)\nselect\n\t*\nfrom\n\tTOTALS t;\n",
+      "upper": "WITH\n\tRECENT AS (\n\t\tSELECT ID\n\t\tFROM ORDERS o\n\t\tWHERE ACTIVE = 1\n\t),\n\tTOTALS AS (\n\t\tSELECT count(*) AS TOTAL\n\t\tFROM RECENT r\n\t)\nSELECT\n\t*\nFROM\n\tTOTALS t;\n",
+      "preserve": "WITH\n\tRECENT AS (\n\t\tSELECT ID\n\t\tFROM ORDERS o\n\t\tWHERE ACTIVE = 1\n\t),\n\tTOTALS AS (\n\t\tSELECT count(*) AS TOTAL\n\t\tFROM RECENT r\n\t)\nSELECT\n\t*\nFROM\n\tTOTALS t;\n"
+    }
+  },
+  {
+    "name": "recursive_cte",
+    "sql": "with recursive nums(n) as (select 1 union all select n + 1 from nums where n < 3) select * from nums",
+    "expected": {
+      "lower": "with\n\trecursive nums(N) as (\n\t\tselect 1\n\t\tunion all\n\t\tselect N + 1\n\t\tfrom NUMS n\n\t\twhere N < 3\n\t)\nselect\n\t*\nfrom\n\tNUMS n;\n",
+      "upper": "WITH\n\tRECURSIVE nums(N) AS (\n\t\tSELECT 1\n\t\tUNION ALL\n\t\tSELECT N + 1\n\t\tFROM NUMS n\n\t\tWHERE N < 3\n\t)\nSELECT\n\t*\nFROM\n\tNUMS n;\n",
+      "preserve": "with\n\trecursive nums(N) as (\n\t\tselect 1\n\t\tunion all\n\t\tselect N + 1\n\t\tfrom NUMS n\n\t\twhere N < 3\n\t)\nselect\n\t*\nfrom\n\tNUMS n;\n"
+    }
+  },
+  {
+    "name": "sets",
+    "sql": "select id from customers UNION ALL select customer_id from loans INTERSECT select id from active_customers",
+    "expected": {
+      "lower": "select\n\tID\nfrom\n\tCUSTOMERS c\nunion all\nselect\n\tCUSTOMER_ID\nfrom\n\tLOANS l\nintersect\nselect\n\tID\nfrom\n\tACTIVE_CUSTOMERS ac;\n",
+      "upper": "SELECT\n\tID\nFROM\n\tCUSTOMERS c\nUNION ALL\nSELECT\n\tCUSTOMER_ID\nFROM\n\tLOANS l\nINTERSECT\nSELECT\n\tID\nFROM\n\tACTIVE_CUSTOMERS ac;\n",
+      "preserve": "select\n\tID\nfrom\n\tCUSTOMERS c\nUNION ALL\nselect\n\tCUSTOMER_ID\nfrom\n\tLOANS l\nINTERSECT\nselect\n\tID\nfrom\n\tACTIVE_CUSTOMERS ac;\n"
+    }
+  },
+  {
+    "name": "case_between",
+    "sql": "select case when age between 18 and 65 and active = 1 then 'Eligible' else 'Other' end as category from customers where amount between 1 and 10 and active = 1",
+    "expected": {
+      "lower": "select\n\tcase when AGE between 18 and 65 and ACTIVE = 1 then 'Eligible' else 'Other' end as CATEGORY\nfrom\n\tCUSTOMERS c\nwhere\n\tAMOUNT between 1 and 10\n\tand ACTIVE = 1;\n",
+      "upper": "SELECT\n\tCASE WHEN AGE BETWEEN 18 AND 65 AND ACTIVE = 1 THEN 'Eligible' ELSE 'Other' END AS CATEGORY\nFROM\n\tCUSTOMERS c\nWHERE\n\tAMOUNT BETWEEN 1 AND 10\n\tAND ACTIVE = 1;\n",
+      "preserve": "select\n\tcase when AGE between 18 and 65 and ACTIVE = 1 then 'Eligible' else 'Other' end as CATEGORY\nfrom\n\tCUSTOMERS c\nwhere\n\tAMOUNT between 1 and 10\n\tand ACTIVE = 1;\n"
+    }
+  },
+  {
+    "name": "windows",
+    "sql": "select ROW_NUMBER() over(partition by customer_id order by created_at desc) as rn, SUM(amount) filter(where active = 1) from payments",
+    "expected": {
+      "lower": "select\n\tROW_NUMBER() over (partition by CUSTOMER_ID order by CREATED_AT desc) as RN, SUM(AMOUNT) filter (where ACTIVE = 1)\nfrom\n\tPAYMENTS p;\n",
+      "upper": "SELECT\n\tROW_NUMBER() OVER (PARTITION BY CUSTOMER_ID ORDER BY CREATED_AT DESC) AS RN, SUM(AMOUNT) FILTER (WHERE ACTIVE = 1)\nFROM\n\tPAYMENTS p;\n",
+      "preserve": "select\n\tROW_NUMBER() over (partition by CUSTOMER_ID order by CREATED_AT desc) as RN, SUM(AMOUNT) filter (where ACTIVE = 1)\nfrom\n\tPAYMENTS p;\n"
+    }
+  },
+  {
+    "name": "grouping",
+    "sql": "select category, count(*) as total from products group by category having count(*) > 1 and sum(price) > 10 order by category limit 10 offset 5",
+    "expected": {
+      "lower": "select\n\tCATEGORY, count(*) as TOTAL\nfrom\n\tPRODUCTS p\ngroup by\n\tCATEGORY\nhaving\n\tcount(*) > 1\n\tand sum(PRICE) > 10\norder by\n\tCATEGORY\nlimit\n\t10\noffset\n\t5;\n",
+      "upper": "SELECT\n\tCATEGORY, count(*) AS TOTAL\nFROM\n\tPRODUCTS p\nGROUP BY\n\tCATEGORY\nHAVING\n\tcount(*) > 1\n\tAND sum(PRICE) > 10\nORDER BY\n\tCATEGORY\nLIMIT\n\t10\nOFFSET\n\t5;\n",
+      "preserve": "select\n\tCATEGORY, count(*) as TOTAL\nfrom\n\tPRODUCTS p\ngroup by\n\tCATEGORY\nhaving\n\tcount(*) > 1\n\tand sum(PRICE) > 10\norder by\n\tCATEGORY\nlimit\n\t10\noffset\n\t5;\n"
+    }
+  },
+  {
+    "name": "insert_values",
+    "sql": "INSERT INTO customers(id, name) VALUES(1, 'Alice'), (2, 'Bob') RETURNING id",
+    "expected": {
+      "lower": "insert into\n\tCUSTOMERS(ID, NAME)\nvalues\n\t(1, 'Alice'), (2, 'Bob')\nreturning\n\tID;\n",
+      "upper": "INSERT INTO\n\tCUSTOMERS(ID, NAME)\nVALUES\n\t(1, 'Alice'), (2, 'Bob')\nRETURNING\n\tID;\n",
+      "preserve": "INSERT INTO\n\tCUSTOMERS(ID, NAME)\nVALUES\n\t(1, 'Alice'), (2, 'Bob')\nRETURNING\n\tID;\n"
+    }
+  },
+  {
+    "name": "insert_select",
+    "sql": "insert into archive(id) select id from customers where active = 0",
+    "expected": {
+      "lower": "insert into\n\tARCHIVE(ID)\nselect\n\tID\nfrom\n\tCUSTOMERS c\nwhere\n\tACTIVE = 0;\n",
+      "upper": "INSERT INTO\n\tARCHIVE(ID)\nSELECT\n\tID\nFROM\n\tCUSTOMERS c\nWHERE\n\tACTIVE = 0;\n",
+      "preserve": "insert into\n\tARCHIVE(ID)\nselect\n\tID\nfrom\n\tCUSTOMERS c\nwhere\n\tACTIVE = 0;\n"
+    }
+  },
+  {
+    "name": "update",
+    "sql": "UPDATE customers SET name = 'Alice', active = 1 WHERE id = :customer_id",
+    "expected": {
+      "lower": "update\n\tCUSTOMERS\nset\n\tNAME = 'Alice', ACTIVE = 1\nwhere\n\tID = :customer_id;\n",
+      "upper": "UPDATE\n\tCUSTOMERS\nSET\n\tNAME = 'Alice', ACTIVE = 1\nWHERE\n\tID = :customer_id;\n",
+      "preserve": "UPDATE\n\tCUSTOMERS\nSET\n\tNAME = 'Alice', ACTIVE = 1\nWHERE\n\tID = :customer_id;\n"
+    }
+  },
+  {
+    "name": "delete",
+    "sql": "DELETE FROM customers WHERE id = 1 OR active = 0",
+    "expected": {
+      "lower": "delete\nfrom\n\tCUSTOMERS\nwhere\n\tID = 1\n\tor ACTIVE = 0;\n",
+      "upper": "DELETE\nFROM\n\tCUSTOMERS\nWHERE\n\tID = 1\n\tOR ACTIVE = 0;\n",
+      "preserve": "DELETE\nFROM\n\tCUSTOMERS\nWHERE\n\tID = 1\n\tOR ACTIVE = 0;\n"
+    }
+  },
+  {
+    "name": "upsert",
+    "sql": "insert into customers(id, name) values(1, 'Alice') on conflict(id) do update set name = 'Bob'",
+    "expected": {
+      "lower": "insert into\n\tCUSTOMERS(ID, NAME)\nvalues\n\t(1, 'Alice') on conflict(ID) do update\nset\n\tNAME = 'Bob';\n",
+      "upper": "INSERT INTO\n\tCUSTOMERS(ID, NAME)\nVALUES\n\t(1, 'Alice') ON conflict(ID) DO UPDATE\nSET\n\tNAME = 'Bob';\n",
+      "preserve": "insert into\n\tCUSTOMERS(ID, NAME)\nvalues\n\t(1, 'Alice') on conflict(ID) do update\nset\n\tNAME = 'Bob';\n"
+    }
+  },
+  {
+    "name": "create",
+    "sql": "CREATE TABLE customers(id INTEGER PRIMARY KEY, name VARCHAR(50) NOT NULL)",
+    "expected": {
+      "lower": "create table CUSTOMERS(ID INTEGER primary key, NAME VARCHAR(50) not null);\n",
+      "upper": "CREATE TABLE CUSTOMERS(ID INTEGER PRIMARY KEY, NAME VARCHAR(50) NOT NULL);\n",
+      "preserve": "CREATE TABLE CUSTOMERS(ID INTEGER PRIMARY KEY, NAME VARCHAR(50) NOT NULL);\n"
+    }
+  },
+  {
+    "name": "locking",
+    "sql": "select * from customers for update",
+    "expected": {
+      "lower": "select\n\t*\nfrom\n\tCUSTOMERS c\nfor update;\n",
+      "upper": "SELECT\n\t*\nFROM\n\tCUSTOMERS c\nFOR UPDATE;\n",
+      "preserve": "select\n\t*\nfrom\n\tCUSTOMERS c\nfor update;\n"
+    }
+  },
+  {
+    "name": "functions_literals",
+    "sql": "SeLeCt MyFunc(customer_id), COALESCE(name, 'Mixed Case; -- text'), N'Unicode', E'escaped' FrOm customers",
+    "expected": {
+      "lower": "select\n\tMyFunc(CUSTOMER_ID), COALESCE(NAME, 'Mixed Case; -- text'), N'Unicode', E'escaped'\nfrom\n\tCUSTOMERS c;\n",
+      "upper": "SELECT\n\tMyFunc(CUSTOMER_ID), COALESCE(NAME, 'Mixed Case; -- text'), N'Unicode', E'escaped'\nFROM\n\tCUSTOMERS c;\n",
+      "preserve": "SeLeCt\n\tMyFunc(CUSTOMER_ID), COALESCE(NAME, 'Mixed Case; -- text'), N'Unicode', E'escaped'\nFrOm\n\tCUSTOMERS c;\n"
+    }
+  },
+  {
+    "name": "identifiers",
+    "sql": "select \"Customer ID\", [Customer Name], `Order ID` from \"Customer Table\"",
+    "expected": {
+      "lower": "select\n\t\"Customer ID\", [CUSTOMER NAME], `ORDER ID`\nfrom\n\t\"Customer Table\";\n",
+      "upper": "SELECT\n\t\"Customer ID\", [CUSTOMER NAME], `ORDER ID`\nFROM\n\t\"Customer Table\";\n",
+      "preserve": "select\n\t\"Customer ID\", [CUSTOMER NAME], `ORDER ID`\nfrom\n\t\"Customer Table\";\n"
+    }
+  },
+  {
+    "name": "parameters",
+    "sql": "select @name, @@ROWCOUNT, :param, $1, ? from customers where id = %(id)s",
+    "expected": {
+      "lower": "select\n\t@name, @@ROWCOUNT, :param, $1, ?\nfrom\n\tCUSTOMERS c\nwhere\n\tID = %(id)s;\n",
+      "upper": "SELECT\n\t@name, @@ROWCOUNT, :param, $1, ?\nFROM\n\tCUSTOMERS c\nWHERE\n\tID = %(id)s;\n",
+      "preserve": "select\n\t@name, @@ROWCOUNT, :param, $1, ?\nfrom\n\tCUSTOMERS c\nwhere\n\tID = %(id)s;\n"
+    }
+  },
+  {
+    "name": "cast",
+    "sql": "select created_at::date, cast(amount as decimal(10, 2)) from payments",
+    "expected": {
+      "lower": "select\n\tCREATED_AT::DATE, cast(AMOUNT as decimal(10, 2))\nfrom\n\tPAYMENTS p;\n",
+      "upper": "SELECT\n\tCREATED_AT::DATE, cast(AMOUNT AS decimal(10, 2))\nFROM\n\tPAYMENTS p;\n",
+      "preserve": "select\n\tCREATED_AT::DATE, cast(AMOUNT as decimal(10, 2))\nfrom\n\tPAYMENTS p;\n"
+    }
+  },
+  {
+    "name": "exists",
+    "sql": "select id from customers where exists(select 1 from loans) and id in(1,2)",
+    "expected": {
+      "lower": "select\n\tID\nfrom\n\tCUSTOMERS c\nwhere\n\texists (\n\t\tselect 1\n\t\tfrom LOANS l\n\t)\n\tand ID in (1, 2);\n",
+      "upper": "SELECT\n\tID\nFROM\n\tCUSTOMERS c\nWHERE\n\tEXISTS (\n\t\tSELECT 1\n\t\tFROM LOANS l\n\t)\n\tAND ID IN (1, 2);\n",
+      "preserve": "select\n\tID\nfrom\n\tCUSTOMERS c\nwhere\n\texists (\n\t\tselect 1\n\t\tfrom LOANS l\n\t)\n\tand ID in (1, 2);\n"
+    }
+  },
+  {
+    "name": "comments",
+    "sql": "-- Heading\nSELECT id, /* Keep this */ name FROM customers; -- Tail\n-- Next\nSELECT 2",
+    "expected": {
+      "lower": "-- Heading\nselect\n\tID, /* Keep this */ NAME\nfrom\n\tCUSTOMERS c; -- Tail\n-- Next\n\nselect\n\t2;\n",
+      "upper": "-- Heading\nSELECT\n\tID, /* Keep this */ NAME\nFROM\n\tCUSTOMERS c; -- Tail\n-- Next\n\nSELECT\n\t2;\n",
+      "preserve": "-- Heading\nSELECT\n\tID, /* Keep this */ NAME\nFROM\n\tCUSTOMERS c; -- Tail\n-- Next\n\nSELECT\n\t2;\n"
+    }
+  },
+  {
+    "name": "block_comment",
+    "sql": "/* Intro\nKeep Case */ select id from customers /* table */ where active = 1",
+    "expected": {
+      "lower": "/* Intro\nKeep Case */\nselect\n\tID\nfrom\n\tCUSTOMERS c /* table */\nwhere\n\tACTIVE = 1;\n",
+      "upper": "/* Intro\nKeep Case */\nSELECT\n\tID\nFROM\n\tCUSTOMERS c /* table */\nWHERE\n\tACTIVE = 1;\n",
+      "preserve": "/* Intro\nKeep Case */\nselect\n\tID\nfrom\n\tCUSTOMERS c /* table */\nwhere\n\tACTIVE = 1;\n"
+    }
+  },
+  {
+    "name": "comment_only",
+    "sql": "-- Only a Comment",
+    "expected": {
+      "lower": "-- Only a Comment\n",
+      "upper": "-- Only a Comment\n",
+      "preserve": "-- Only a Comment\n"
+    }
+  },
+  {
+    "name": "adjacent_strings",
+    "sql": "select 'first'\n'second' from customers",
+    "expected": {
+      "lower": "select\n\t'first'\n\t'second'\nfrom\n\tCUSTOMERS c;\n",
+      "upper": "SELECT\n\t'first'\n\t'second'\nFROM\n\tCUSTOMERS c;\n",
+      "preserve": "select\n\t'first'\n\t'second'\nfrom\n\tCUSTOMERS c;\n"
+    }
+  },
+  {
+    "name": "terminated",
+    "sql": "select 1; select 2;",
+    "expected": {
+      "lower": "select\n\t1;\n\nselect\n\t2;\n",
+      "upper": "SELECT\n\t1;\n\nSELECT\n\t2;\n",
+      "preserve": "select\n\t1;\n\nselect\n\t2;\n"
+    }
+  },
+  {
+    "name": "unterminated",
+    "sql": "select 1 select 2",
+    "expected": {
+      "lower": "select\n\t1;\n\nselect\n\t2;\n",
+      "upper": "SELECT\n\t1;\n\nSELECT\n\t2;\n",
+      "preserve": "select\n\t1;\n\nselect\n\t2;\n"
+    }
+  },
+  {
+    "name": "comment_boundary",
+    "sql": "select 1\n-- Next query\nselect 2",
+    "expected": {
+      "lower": "select\n\t1;\n\n-- Next query\nselect\n\t2;\n",
+      "upper": "SELECT\n\t1;\n\n-- Next query\nSELECT\n\t2;\n",
+      "preserve": "select\n\t1;\n\n-- Next query\nselect\n\t2;\n"
+    }
+  },
+  {
+    "name": "trailing_comment",
+    "sql": "select 1; -- Keep at end",
+    "expected": {
+      "lower": "select\n\t1; -- Keep at end\n",
+      "upper": "SELECT\n\t1; -- Keep at end\n",
+      "preserve": "select\n\t1; -- Keep at end\n"
+    }
+  },
+  {
+    "name": "semicolons",
+    "sql": ";;select 1;;",
+    "expected": {
+      "lower": ";\n\n;\n\nselect\n\t1;\n\n;\n",
+      "upper": ";\n\n;\n\nSELECT\n\t1;\n\n;\n",
+      "preserve": ";\n\n;\n\nselect\n\t1;\n\n;\n"
+    }
+  },
+  {
+    "name": "values",
+    "sql": "VALUES (1, 2), (3, 4)",
+    "expected": {
+      "lower": "values\n\t(1, 2), (3, 4);\n",
+      "upper": "VALUES\n\t(1, 2), (3, 4);\n",
+      "preserve": "VALUES\n\t(1, 2), (3, 4);\n"
+    }
+  },
+  {
+    "name": "cte_statement_boundary",
+    "sql": "select 1 with q as (select 2) select * from q",
+    "expected": {
+      "lower": "select\n\t1;\n\nwith\n\tQ as (\n\t\tselect 2\n\t)\nselect\n\t*\nfrom\n\tQ q;\n",
+      "upper": "SELECT\n\t1;\n\nWITH\n\tQ AS (\n\t\tSELECT 2\n\t)\nSELECT\n\t*\nFROM\n\tQ q;\n",
+      "preserve": "select\n\t1;\n\nwith\n\tQ as (\n\t\tselect 2\n\t)\nselect\n\t*\nfrom\n\tQ q;\n"
+    }
+  },
+  {
+    "name": "cte_comments_at_boundary",
+    "sql": "select 1\nwith /* CTE name */ q /* definition */ as (select 2) select * from q",
+    "expected": {
+      "lower": "select\n\t1;\n\nwith\n\t/* CTE name */ Q /* definition */ as (\n\t\tselect 2\n\t)\nselect\n\t*\nfrom\n\tQ q;\n",
+      "upper": "SELECT\n\t1;\n\nWITH\n\t/* CTE name */ Q /* definition */ AS (\n\t\tSELECT 2\n\t)\nSELECT\n\t*\nFROM\n\tQ q;\n",
+      "preserve": "select\n\t1;\n\nwith\n\t/* CTE name */ Q /* definition */ as (\n\t\tselect 2\n\t)\nselect\n\t*\nfrom\n\tQ q;\n"
+    }
+  },
+  {
+    "name": "recursive_cte_boundary",
+    "sql": "select 1 with recursive q(n) as (select 2) select * from q",
+    "expected": {
+      "lower": "select\n\t1 with recursive q(N) as (\n\t\tselect 2\n\t);\n\nselect\n\t*\nfrom\n\tQ q;\n",
+      "upper": "SELECT\n\t1 WITH RECURSIVE q(N) AS (\n\t\tSELECT 2\n\t);\n\nSELECT\n\t*\nFROM\n\tQ q;\n",
+      "preserve": "select\n\t1 with recursive q(N) as (\n\t\tselect 2\n\t);\n\nselect\n\t*\nfrom\n\tQ q;\n"
+    }
+  },
+  {
+    "name": "insert_statement_boundary",
+    "sql": "select 1 insert /* Keep Comment */ into customers(id) values(2)",
+    "expected": {
+      "lower": "select\n\t1;\n\ninsert\n\t/* Keep Comment */\ninto\n\tCUSTOMERS(ID)\nvalues\n\t(2);\n",
+      "upper": "SELECT\n\t1;\n\nINSERT\n\t/* Keep Comment */\nINTO\n\tCUSTOMERS(ID)\nVALUES\n\t(2);\n",
+      "preserve": "select\n\t1;\n\ninsert\n\t/* Keep Comment */\ninto\n\tCUSTOMERS(ID)\nvalues\n\t(2);\n"
+    }
+  },
+  {
+    "name": "select_after_values",
+    "sql": "insert into customers(id) values(1) select 2",
+    "expected": {
+      "lower": "insert into\n\tCUSTOMERS(ID)\nvalues\n\t(1);\n\nselect\n\t2;\n",
+      "upper": "INSERT INTO\n\tCUSTOMERS(ID)\nVALUES\n\t(1);\n\nSELECT\n\t2;\n",
+      "preserve": "insert into\n\tCUSTOMERS(ID)\nvalues\n\t(1);\n\nselect\n\t2;\n"
+    }
+  }
+]

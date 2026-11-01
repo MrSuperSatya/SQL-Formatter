@@ -18,4 +18,4 @@ where
             ) x
     )
 order by
-    l.TOTAL_BALANCE desc;select * from customer_orders where CUSTOMER_ID in (1,2)
+    l.TOTAL_BALANCE desc;select * from customer_orders where CUSTOMER_ID in (1,2)  
