@@ -144,6 +144,10 @@ def _find_tables(items: list[_Node]) -> list[_Table]:
         if key in {"FROM", "UPDATE", "INTO"} or key.endswith("JOIN") or key in _APPLY:
             in_from = expecting = True
             selectable = key not in {"UPDATE", "INTO"} and last_keyword != "DELETE"
+        elif in_from and key in {"ON", "USING"}:
+            # A join condition ends this table source, but a subsequent comma
+            # still introduces another source in the same FROM list.
+            expecting = False
         elif key in _FROM_ENDERS:
             in_from = expecting = False
         elif in_from and isinstance(node, _Token) and node.is_punct(","):
@@ -228,17 +232,29 @@ def _bind_tables(scopes: list[_Scope]) -> dict[int, _Token]:
 
 def _resolve(scope: _Scope, parts: list[_Token]) -> tuple[_Binding, int] | None:
     qualifier = tuple(_name_key(part) for part in parts[:-1])
+    scopes: list[_Scope] = []
     current: _Scope | None = scope
     while current is not None:
-        for size in range(len(qualifier), 0, -1):
-            binding = current.bindings.get(qualifier[:size])
-            if binding is not None:
-                return binding, size
+        scopes.append(current)
+        current = current.parent
+
+    # A complete schema.table match in an enclosing query takes precedence over
+    # a local table with the same last name or an alias named after the schema.
+    for current in scopes:
+        binding = current.bindings.get(qualifier)
+        if binding is not None:
+            return binding, len(qualifier)
+    for current in scopes:
         # An unqualified FROM table may still be referenced as schema.table.column.
         binding = current.bindings.get((qualifier[-1],))
         if binding is not None and binding.implicit_schema:
             return binding, len(qualifier)
-        current = current.parent
+    # Retain support for qualified fields such as alias.column.field.
+    for size in range(len(qualifier) - 1, 0, -1):
+        for current in scopes:
+            binding = current.bindings.get(qualifier[:size])
+            if binding is not None:
+                return binding, size
     return None
 
 

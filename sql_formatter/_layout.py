@@ -166,7 +166,6 @@ class _Formatter:
         case_depth = 0
         between = False
         for i, node in enumerate(items):
-            following = items[i + 1] if i + 1 < len(items) else None
             key = _key(node)
             if key == "CASE":
                 case_depth += 1
@@ -176,6 +175,11 @@ class _Formatter:
                 self.write_comment(node, level)
                 previous = node
                 continue
+            # Comments do not change whether a keyword is used as a function.
+            next_index = i + 1
+            while next_index < len(items) and _is_comment(items[next_index]):
+                next_index += 1
+            following = items[next_index] if next_index < len(items) else None
             if case_depth == 0:
                 if joins and ("JOIN" in key.split() or key in _APPLY):
                     self.out.newline()

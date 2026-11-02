@@ -198,6 +198,20 @@ class RegressionTests(unittest.TestCase):
         ):
             self.assert_equivalent(source)
 
+    def test_comma_sources_after_join_conditions_keep_their_local_scope(self):
+        for condition in ("on a.id=b.id", "using(id)"):
+            for source in (
+                "customers",
+                "accounts customers",
+                "(select 1 as id) customers",
+                "(customers)",
+            ):
+                self.assert_equivalent(
+                    "select customers.id from customers where exists "
+                    f"(select 1 from accounts a join accounts b {condition}, "
+                    f"{source} where customers.id=1)"
+                )
+
     def test_schema_qualified_columns_and_wildcards(self):
         for source in (
             "select main.customers.id from main.customers",
@@ -207,6 +221,30 @@ class RegressionTests(unittest.TestCase):
             "join other.customers on main.customers.id = other.customers.id",
         ):
             self.assert_equivalent(source)
+
+    def test_schema_qualified_correlations_prefer_the_matching_table(self):
+        for source in (
+            "select other.customers.id from other.customers where exists "
+            "(select 1 from customers where customers.id=other.customers.id)",
+            "select other.customers.id from other.customers where exists "
+            "(select 1 from customers where main.customers.id=other.customers.id)",
+            "select main.customers.id from main.customers where exists "
+            "(select 1 from other.customers where main.customers.id=other.customers.id)",
+        ):
+            self.assert_equivalent(source)
+
+    def test_schema_names_are_not_confused_with_inner_table_aliases(self):
+        for outer_table, inner_table, alias in (
+            ("customers", "other.customers", "main"),
+            ("main.customers", "other.customers", "main"),
+            ("other.customers", "customers", "other"),
+        ):
+            schema = "other" if outer_table.startswith("other.") else "main"
+            self.assert_equivalent(
+                f"select {outer_table}.id from {outer_table} where exists "
+                f"(select 1 from {inner_table} {alias} "
+                f"where {schema}.customers.id={alias}.id)"
+            )
 
     def test_schema_qualified_wildcard_uses_the_generated_alias(self):
         self.assertEqual(
@@ -262,6 +300,18 @@ class RegressionTests(unittest.TestCase):
             "select x.value from json_each('[1, 2]') /* note */ x",
         ):
             self.assert_equivalent(source)
+
+    def test_comments_before_function_arguments_keep_function_spelling(self):
+        for function in ("MAX", "mIn", "COUNT"):
+            for comment in ("/* note */", "-- note\n", "/* first *//* second */"):
+                source = f"select {function}{comment}(id) from customers"
+                self.assert_equivalent(source)
+                for keyword_case in ("lower", "upper", "preserve"):
+                    with self.subTest(function=function, comment=comment,
+                                      keyword_case=keyword_case):
+                        self.assertIn(
+                            function + " ", format_sql(source, keyword_case=keyword_case)
+                        )
 
     def test_parenthesized_table_sources_keep_correlated_references(self):
         for source in (
