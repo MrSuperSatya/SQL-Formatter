@@ -2,6 +2,9 @@
 
 from __future__ import annotations
 
+from collections.abc import Iterator
+from dataclasses import dataclass
+
 from sqlparse import tokens as T
 
 from ._syntax import (
@@ -23,6 +26,21 @@ from ._tokens import (
     _key,
     _own_line,
 )
+
+
+@dataclass
+class _Statement:
+    """A statement, empty statement, or final comment-only segment."""
+
+    items: list[_Node]
+    terminator: _Token | None
+    trailing_comments: list[_Token]
+
+    @property
+    def needs_terminator(self) -> bool:
+        return self.terminator is None and any(
+            not _is_comment(node) for node in self.items
+        )
 
 
 def _check_supported(tokens: list[_Token]) -> None:
@@ -76,10 +94,9 @@ def _starts_statement(items: list[_Node], i: int, key: str, body: bool, prev: _N
     return _key(prev) not in _SETS and _key(prev) not in {"FOR", "DO", "KEY", "THEN"}
 
 
-def _split_statements(items: list[_Node]) -> tuple[list[_Node], int]:
+def _split_statements(items: list[_Node]) -> list[_Node]:
     """Insert a semicolon between statements that were not terminated."""
     result: list[_Node] = []
-    inserted = 0
     first: str | None = None
     body = False
     prev: _Node | None = None
@@ -100,7 +117,6 @@ def _split_statements(items: list[_Node]) -> tuple[list[_Node], int]:
             while back > 0 and _is_comment(result[back - 1]) and _own_line(result, back - 1):
                 back -= 1
             result.insert(back, _Token(T.Punctuation, ";"))
-            inserted += 1
             first = key
             body = key in _BODY_KEYS
         elif not body and first == "WITH" and key in _DML_KEYS:
@@ -111,4 +127,27 @@ def _split_statements(items: list[_Node]) -> tuple[list[_Node], int]:
             body = True
         prev = node
         result.append(node)
-    return result, inserted
+    return result
+
+
+def _iter_statements(items: list[_Node]) -> Iterator[_Statement]:
+    """Group top-level statements, keeping inline comments with their terminator."""
+    body: list[_Node] = []
+    index = 0
+    while index < len(items):
+        node = items[index]
+        index += 1
+        if not _is_semicolon(node):
+            body.append(node)
+            continue
+        comments: list[_Token] = []
+        while index < len(items):
+            following = items[index]
+            if not _is_comment(following) or following.after_break:
+                break
+            comments.append(following)
+            index += 1
+        yield _Statement(body, node, comments)
+        body = []
+    if body:
+        yield _Statement(body, None, [])

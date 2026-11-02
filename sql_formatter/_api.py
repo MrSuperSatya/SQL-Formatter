@@ -32,7 +32,7 @@ def format_sql(sql: str, *, keyword_case: str = "lower") -> str:
     if not tokens:
         return ""
     _check_supported(tokens)
-    items, _ = _split_statements(_tree(tokens))
+    items = _split_statements(_tree(tokens))
     normalized = _normalize_identifiers(items)
     result, added = _render(_tree(normalized), keyword_case)
     _verify_tokens(normalized, result, added)

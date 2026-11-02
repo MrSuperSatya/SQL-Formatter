@@ -1,10 +1,10 @@
-"""Tokenize SQL, build parenthesis trees, and verify token preservation."""
+"""Tokenize SQL, read qualified names, and verify token preservation."""
 
 from __future__ import annotations
 
-from collections.abc import Iterator
+from collections.abc import Iterator, Sequence
 from dataclasses import dataclass
-from typing import Any, Union
+from typing import Any, TypeGuard, Union
 
 try:
     from sqlparse import lexer, tokens as T
@@ -70,11 +70,43 @@ class _Group:
 _Node = Union[_Token, _Group]
 
 
-def _is_comment(node: _Node | None) -> bool:
+@dataclass
+class _NamePath:
+    """A name's segments and punctuation, retained for qualifier rewrites."""
+
+    parts: list[_Token]
+    dots: list[_Token]
+    end: int  # index immediately after the path in the input sequence
+
+
+def _read_name_path(items: Sequence[_Node], index: int, *,
+                    allow_wildcard: bool = False) -> _NamePath | None:
+    """Read a dotted identifier from a comment-free sequence."""
+    first = items[index]
+    if not isinstance(first, _Token) or not first.is_name:
+        return None
+    parts = [first]
+    dots: list[_Token] = []
+    end = index + 1
+    while end + 1 < len(items):
+        dot, part = items[end], items[end + 1]
+        if not isinstance(dot, _Token) or not dot.is_punct("."):
+            break
+        if not isinstance(part, _Token) or not (
+            part.is_name or (allow_wildcard and part.raw == "*")
+        ):
+            break
+        dots.append(dot)
+        parts.append(part)
+        end += 2
+    return _NamePath(parts, dots, end)
+
+
+def _is_comment(node: _Node | None) -> TypeGuard[_Token]:
     return isinstance(node, _Token) and node.kind in T.Comment
 
 
-def _is_semicolon(node: _Node | None) -> bool:
+def _is_semicolon(node: _Node | None) -> TypeGuard[_Token]:
     return isinstance(node, _Token) and node.is_punct(";")
 
 

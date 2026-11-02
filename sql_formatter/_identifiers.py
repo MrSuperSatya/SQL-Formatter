@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+from collections.abc import Sequence
 from dataclasses import dataclass, field
 
 from sqlparse import lexer, tokens as T
@@ -9,7 +10,7 @@ from sqlparse import lexer, tokens as T
 from ._syntax import _APPLY, _DML_KEYS, _FROM_ENDERS, _SETS, _TABLE_NAME_PRECEDERS
 from ._tokens import (
     _Group, _Node, _Token, _first, _flatten, _is_comment, _is_distinct_from,
-    _is_semicolon, _key,
+    _is_semicolon, _key, _read_name_path,
 )
 
 
@@ -116,7 +117,7 @@ def _scope_tokens(items: list[_Node]) -> list[_Token]:
     return tokens
 
 
-def _alias_after(items: list[_Node], index: int) -> _Token | None:
+def _alias_after(items: Sequence[_Node], index: int) -> _Token | None:
     if index < len(items) and _key(items[index]) == "AS":
         index += 1
     if index < len(items):
@@ -127,6 +128,36 @@ def _alias_after(items: list[_Node], index: int) -> _Token | None:
             node.alias = True
             return node
     return None
+
+
+def _table_at(nodes: Sequence[_Node], index: int, *,
+              selectable: bool) -> tuple[_Table, int] | None:
+    """Read one table source; leave its alias for the surrounding scan."""
+    node = nodes[index]
+    if isinstance(node, _Group):
+        return _Table(
+            [], _alias_after(nodes, index + 1), opaque=not node.is_query
+        ), index + 1
+    path = _read_name_path(nodes, index)
+    if path is None:
+        return None
+    end = path.end
+    call = end < len(nodes) and isinstance(nodes[end], _Group)
+    if call:
+        end += 1
+    alias = _alias_after(nodes, end)
+    # Unknown keyword suffixes may be dialect-specific table hints.
+    suffix = nodes[end] if end < len(nodes) else None
+    safe_suffix = (
+        suffix is None or not _key(suffix)
+        or _key(suffix) in (_FROM_ENDERS | {"FOR", "FOR UPDATE", "FOR SHARE"})
+        or "JOIN" in _key(suffix)
+    )
+    return _Table(
+        path.parts, alias,
+        generate=selectable and not call and alias is None
+        and not any(part.is_quoted for part in path.parts) and safe_suffix,
+    ), end
 
 
 def _find_tables(items: list[_Node]) -> list[_Table]:
@@ -152,40 +183,13 @@ def _find_tables(items: list[_Node]) -> list[_Table]:
             in_from = expecting = False
         elif in_from and isinstance(node, _Token) and node.is_punct(","):
             expecting = True
-        elif expecting and isinstance(node, _Group):
-            tables.append(_Table(
-                [], _alias_after(nodes, index + 1), opaque=not node.is_query
-            ))
-            expecting = False
-        elif expecting and isinstance(node, _Token) and node.is_name:
-            path = [node]
-            index += 1
-            while (
-                index + 1 < len(nodes)
-                and isinstance(nodes[index], _Token)
-                and nodes[index].is_punct(".")
-                and isinstance(nodes[index + 1], _Token)
-                and nodes[index + 1].is_name
-            ):
-                path.append(nodes[index + 1])
-                index += 2
-            call = index < len(nodes) and isinstance(nodes[index], _Group)
-            if call:
-                index += 1
-            alias = _alias_after(nodes, index)
-            # Quoted table names keep their spelling and existing qualification.
-            # Unknown keyword suffixes may be dialect-specific table hints.
-            suffix = nodes[index] if index < len(nodes) else None
-            safe_suffix = suffix is None or not _key(suffix) or _key(suffix) in (
-                _FROM_ENDERS | {"FOR", "FOR UPDATE", "FOR SHARE"}
-            ) or "JOIN" in _key(suffix)
-            tables.append(_Table(
-                path, alias,
-                generate=selectable and not call and alias is None
-                and not any(part.is_quoted for part in path) and safe_suffix,
-            ))
-            expecting = False
-            continue
+        elif expecting:
+            match = _table_at(nodes, index, selectable=selectable)
+            if match is not None:
+                table, index = match
+                tables.append(table)
+                expecting = False
+                continue
         if key:
             last_keyword = key
         index += 1
@@ -263,20 +267,13 @@ def _rewrite_references(scope: _Scope, tokens: list[_Token]) -> set[int]:
     removed: set[int] = set()
     index = 0
     while index < len(tokens):
-        if not tokens[index].is_name:
+        path = _read_name_path(tokens, index, allow_wildcard=True)
+        if path is None:
             index += 1
             continue
-        parts = [tokens[index]]
-        dots: list[_Token] = []
-        end = index + 1
-        while end + 1 < len(tokens) and tokens[end].is_punct(".") and (
-            tokens[end + 1].is_name or tokens[end + 1].raw == "*"
-        ):
-            dots.append(tokens[end])
-            parts.append(tokens[end + 1])
-            end += 2
+        parts = path.parts
         if len(parts) > 1 and not any(id(part) in declarations for part in parts):
-            is_call = end < len(tokens) and tokens[end].is_punct("(")
+            is_call = path.end < len(tokens) and tokens[path.end].is_punct("(")
             match = None if is_call else _resolve(scope, parts)
             if match is not None:
                 binding, size = match
@@ -285,10 +282,10 @@ def _rewrite_references(scope: _Scope, tokens: list[_Token]) -> set[int]:
                     parts[0].kind = T.Name
                     parts[0].alias = True
                     removed.update(id(part) for part in parts[1:size])
-                    removed.update(id(dot) for dot in dots[:size - 1])
+                    removed.update(id(dot) for dot in path.dots[:size - 1])
                 elif binding.alias is not None:
                     parts[0].alias = True
-        index = end
+        index = path.end
     return removed
 
 

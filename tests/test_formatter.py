@@ -42,6 +42,32 @@ class FormattingTests(unittest.TestCase):
         format_sql("select * from loans c join customers on c.id = customers.id")
         self.assertEqual(format_sql(source), expected)
 
+    def test_statement_comments_keep_their_position(self):
+        cases = (
+            (
+                "select 1; -- first\n-- second\nselect 2; -- final  ",
+                "select\n\t1; -- first\n-- second\n\nselect\n\t2; -- final  \n",
+            ),
+            (
+                "select 1;\n-- only a comment  ",
+                "select\n\t1;\n\n-- only a comment  \n",
+            ),
+            (
+                "select 1\n-- next\nselect 2",
+                "select\n\t1;\n\n-- next\nselect\n\t2;\n",
+            ),
+        )
+        for source, expected in cases:
+            with self.subTest(source=source):
+                self.assertEqual(format_sql(source), expected)
+                self.assertEqual(format_sql(expected), expected)
+
+    def test_empty_statements_keep_their_terminators(self):
+        self.assertEqual(
+            format_sql(";select 1;;select 2;"),
+            ";\n\nselect\n\t1;\n\n;\n\nselect\n\t2;\n",
+        )
+
     def test_non_string_inputs_are_rejected(self):
         for value in (None, 1, b"select 1", ["select 1"]):
             with self.subTest(value=value):

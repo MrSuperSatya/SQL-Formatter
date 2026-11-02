@@ -11,7 +11,7 @@ From the project directory:
 python -m pip install -r requirements.txt
 ```
 
-Import directly from the package, as shown in `test.ipynb`:
+Import directly from the package:
 
 ```python
 from sql_formatter import format_sql, format_sql_file
@@ -44,7 +44,7 @@ parentheses, and token-preservation failures raise `ValueError`.
 
 ## GUI app
 
-On Windows, double-click **Launch SQL Formatter.bat** in the project folder.
+On Windows, double-click **app_gui.bat** in the project folder.
 The launcher uses `.venv\Scripts\pythonw.exe` to open `app_gui.py`.
 
 You can also run it from the project directory:
@@ -62,13 +62,13 @@ The GUI requires a Python installation with Tkinter support.
 
 | File | Responsibility |
 | --- | --- |
-| `Launch SQL Formatter.bat` | Double-click launcher using the project's virtual environment |
+| `app_gui.bat` | Double-click launcher using the project's virtual environment |
 | `app_gui.py` | Tkinter GUI with Format & Copy and Clear buttons |
 | `sql_formatter/__init__.py` | Public package imports |
 | `sql_formatter/_api.py` | Public string and file formatting functions |
-| `sql_formatter/_tokens.py` | Lexing, parenthesis trees, and token preservation |
+| `sql_formatter/_tokens.py` | Lexing, parenthesis trees, qualified-name reading, and token preservation |
 | `sql_formatter/_identifiers.py` | Query scopes, table aliases, and identifier normalization |
-| `sql_formatter/_statements.py` | Script validation and statement boundaries |
+| `sql_formatter/_statements.py` | Script validation, statement boundaries, and grouping with trailing comments |
 | `sql_formatter/_layout.py` | Expression, clause, and statement rendering |
 | `sql_formatter/_syntax.py` | Shared SQL keyword categories and formatting limits |
 
@@ -86,8 +86,9 @@ python -m unittest discover -s tests -v
 
 The regression fixtures cover 44 SQL examples in
 all three keyword modes. Tests check exact output, formatting idempotence,
-invalid input, and file behavior including BOMs, encodings,
-LF newlines, and preserving an existing output file when formatting fails.
+statement comments and empty statements, invalid input, and file behavior
+including BOMs, encodings, LF newlines, and preserving an existing output file
+when formatting fails.
 Additional regression tests execute SQL against an in-memory SQLite database
 to check query results before and after formatting, including scoped aliases,
 schema-qualified columns, comments, quoted names, and compound queries.

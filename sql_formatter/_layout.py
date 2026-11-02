@@ -6,6 +6,7 @@ from dataclasses import dataclass
 
 from sqlparse import tokens as T
 
+from ._statements import _iter_statements
 from ._syntax import (
     _APPLY,
     _CLAUSES,
@@ -25,7 +26,6 @@ from ._tokens import (
     _first,
     _is_comment,
     _is_distinct_from,
-    _is_semicolon,
     _key,
 )
 
@@ -245,27 +245,15 @@ class _Formatter:
 def _render(items: list[_Node], keyword_case: str) -> tuple[str, int]:
     """Lay out terminated statements; returns the text and terminators added."""
     renderer = _Formatter(keyword_case)
-    statement: list[_Node] = []
     added = 0
-    i = 0
-    while i < len(items):
-        node = items[i]
-        i += 1
-        if not _is_semicolon(node):
-            statement.append(node)
-            continue
-        renderer.statement(statement)
-        renderer.out.write(";", 0, False)
-        statement = []
-        # An inline comment after a terminator belongs to that statement.
-        while i < len(items) and _is_comment(items[i]) and not items[i].after_break:
-            renderer.write_comment(items[i], 0)
-            i += 1
-        if i < len(items):
+    for index, statement in enumerate(_iter_statements(items)):
+        if index:
             renderer.out.newline(blank=True)
-    if statement:
-        renderer.statement(statement)
-        if any(not _is_comment(n) for n in statement):
+        renderer.statement(statement.items)
+        needs_terminator = statement.needs_terminator
+        if statement.terminator is not None or needs_terminator:
             renderer.out.write(";", 0, False)
-            added = 1
+        added += needs_terminator
+        for comment in statement.trailing_comments:
+            renderer.write_comment(comment, 0)
     return "".join(renderer.out.parts).rstrip("\r\n") + "\n", added

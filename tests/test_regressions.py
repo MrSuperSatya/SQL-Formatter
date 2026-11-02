@@ -247,9 +247,33 @@ class RegressionTests(unittest.TestCase):
             )
 
     def test_schema_qualified_wildcard_uses_the_generated_alias(self):
-        self.assertEqual(
-            format_sql("select main.customers.* from main.customers"),
-            "select\n\tc.*\nfrom\n\tMAIN.CUSTOMERS c;\n",
+        for source, expected in (
+            (
+                "select main.customers.* from main.customers",
+                "select\n\tc.*\nfrom\n\tMAIN.CUSTOMERS c;\n",
+            ),
+            (
+                "select main /* schema */ . customers /* table */ . * "
+                "from main /* source */ . customers",
+                "select\n\tc /* schema */ /* table */.*\n"
+                "from\n\tMAIN /* source */.CUSTOMERS c;\n",
+            ),
+        ):
+            with self.subTest(source=source):
+                self.assertEqual(format_sql(source), expected)
+                self.assertEqual(format_sql(expected), expected)
+
+    def test_comments_in_qualified_column_names(self):
+        for schema in ("main", "other"):
+            self.assert_equivalent(
+                f"select {schema} /* schema */ . customers /* table */ . id "
+                f"from {schema} /* source */ . customers"
+            )
+
+    def test_statement_boundaries_ignore_nested_queries_and_literal_semicolons(self):
+        self.assert_equivalent(
+            "select ';' as marker, (select count(*) from customers); "
+            "select 'not; a boundary' /* ; */"
         )
 
     def test_comments_do_not_hide_existing_aliases(self):
